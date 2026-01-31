@@ -1054,6 +1054,46 @@ class FacebookTelegramBot:
             self.stop_monitoring()
 
 
+def ensure_data_files():
+    """
+    Ensure data files exist in DATA_DIR (for Render persistent disk).
+    On first deploy, copy cookies from repo to /data if needed.
+    """
+    import shutil
+    
+    data_dir = os.environ.get("DATA_DIR", ".")
+    cookies_file = os.environ.get("COOKIES_FILE", "fb_cookies.json")
+    
+    # Create data directory if needed
+    if data_dir != ".":
+        os.makedirs(data_dir, exist_ok=True)
+        print(f"[STARTUP] Ensured data directory exists: {data_dir}")
+    
+    # If cookies file is in /data but doesn't exist yet, try to copy from repo
+    if data_dir != "." and cookies_file.startswith(data_dir):
+        if not os.path.exists(cookies_file):
+            # Look for cookies in repo root
+            repo_cookies = "fb_cookies.json"
+            if os.path.exists(repo_cookies):
+                shutil.copy(repo_cookies, cookies_file)
+                print(f"[STARTUP] Copied cookies from {repo_cookies} to {cookies_file}")
+            else:
+                print(f"[WARNING] No cookies file found! You need to upload fb_cookies.json to {data_dir}")
+        else:
+            print(f"[STARTUP] Cookies file already exists at: {cookies_file}")
+    
+    # Ensure bot_data.json and seen_posts.json exist (empty if not)
+    for filename in ["bot_data.json", "seen_posts.json"]:
+        filepath = os.path.join(data_dir, filename)
+        if not os.path.exists(filepath):
+            with open(filepath, 'w') as f:
+                if filename == "bot_data.json":
+                    json.dump({"groups": {}, "processed_items": {}, "initialized_keywords": []}, f)
+                else:
+                    json.dump({"posts": {}}, f)
+            print(f"[STARTUP] Created empty {filename}")
+
+
 def main():
     print("""
     ╔═══════════════════════════════════════════════╗
@@ -1061,6 +1101,9 @@ def main():
     ║   Multi-Group • Interactive Menu              ║
     ╚═══════════════════════════════════════════════╝
     """)
+    
+    # Ensure data files are in place (for Render persistent disk)
+    ensure_data_files()
     
     bot = FacebookTelegramBot()
     bot.run()
