@@ -1057,7 +1057,7 @@ class FacebookTelegramBot:
 def ensure_data_files():
     """
     Ensure data files exist in DATA_DIR (for Render persistent disk).
-    On first deploy, copy cookies from repo to /data if needed.
+    Copies cookies from Render's secret files location (/etc/secrets/) to /data.
     """
     import shutil
     
@@ -1069,18 +1069,22 @@ def ensure_data_files():
         os.makedirs(data_dir, exist_ok=True)
         print(f"[STARTUP] Ensured data directory exists: {data_dir}")
     
-    # If cookies file is in /data but doesn't exist yet, try to copy from repo
-    if data_dir != "." and cookies_file.startswith(data_dir):
-        if not os.path.exists(cookies_file):
-            # Look for cookies in repo root
-            repo_cookies = "fb_cookies.json"
-            if os.path.exists(repo_cookies):
-                shutil.copy(repo_cookies, cookies_file)
-                print(f"[STARTUP] Copied cookies from {repo_cookies} to {cookies_file}")
-            else:
-                print(f"[WARNING] No cookies file found! You need to upload fb_cookies.json to {data_dir}")
+    # Check if cookies file needs to be copied
+    if not os.path.exists(cookies_file):
+        # Render mounts secret files at /etc/secrets/FILENAME
+        secret_cookies = "/etc/secrets/fb_cookies.json"
+        
+        if os.path.exists(secret_cookies):
+            shutil.copy(secret_cookies, cookies_file)
+            print(f"[STARTUP] Copied cookies from {secret_cookies} to {cookies_file}")
+        # Also check repo root as fallback
+        elif os.path.exists("fb_cookies.json"):
+            shutil.copy("fb_cookies.json", cookies_file)
+            print(f"[STARTUP] Copied cookies from repo to {cookies_file}")
         else:
-            print(f"[STARTUP] Cookies file already exists at: {cookies_file}")
+            print(f"[WARNING] No cookies file found! Add fb_cookies.json as a Render Secret File")
+    else:
+        print(f"[STARTUP] Cookies file already exists at: {cookies_file}")
     
     # Ensure bot_data.json and seen_posts.json exist (empty if not)
     for filename in ["bot_data.json", "seen_posts.json"]:
