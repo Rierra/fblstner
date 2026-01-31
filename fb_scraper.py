@@ -127,6 +127,7 @@ class FacebookSearchScraper:
         search_url = f"https://www.facebook.com/search/posts?q={encoded_keyword}&filters={recent_filter}"
         
         print(f"\n[SEARCH] Keyword: '{keyword}'")
+        print(f"[SEARCH] URL: {search_url}")
         
         try:
             self.driver.get(search_url)
@@ -144,11 +145,35 @@ class FacebookSearchScraper:
             # Let content load
             self._random_delay(2.0)
             
+            # Debug: Log page title to see if we're logged in
+            page_title = self.driver.title
+            print(f"[DEBUG] Page title: {page_title}")
+            
+            # Check for login indicators
+            current_url = self.driver.current_url
+            print(f"[DEBUG] Current URL: {current_url}")
+            
+            if "login" in current_url.lower() or "checkpoint" in current_url.lower():
+                print("[ERROR] Redirected to login/checkpoint page - cookies may be expired!")
+                
             # Get page HTML
             html = self.driver.page_source
             
+            # Debug: Check if we see "Log In" button (not logged in indicator)
+            if 'Log In</span>' in html or 'Log in</span>' in html:
+                print("[WARNING] Page contains 'Log In' button - cookies may not be working!")
+            
             # Parse with BeautifulSoup - NEW METHOD
             posts = self._extract_posts_by_url_boundaries(html, keyword)
+            
+            # Debug: If no posts found, save screenshot
+            if len(posts) == 0:
+                try:
+                    screenshot_path = f"/var/data/debug_screenshot_{keyword}.png"
+                    self.driver.save_screenshot(screenshot_path)
+                    print(f"[DEBUG] Saved screenshot to {screenshot_path}")
+                except Exception as e:
+                    print(f"[DEBUG] Could not save screenshot: {e}")
             
             print(f"[SEARCH] Found {len(posts)} clean posts for '{keyword}'")
             return posts
