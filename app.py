@@ -228,6 +228,36 @@ class FacebookTelegramBot:
 """
         await update.message.reply_text(status_text, parse_mode='HTML')
     
+    async def debug_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Send debug screenshot to see what the scraper sees"""
+        chat_id = update.effective_chat.id
+        
+        if not self.is_owner(chat_id):
+            await update.message.reply_text("Commands are only available in the control group.")
+            return
+        
+        # Check for screenshots in data directory
+        import glob
+        screenshot_pattern = os.path.join(self.data_dir, "debug_screenshot_*.png")
+        screenshots = glob.glob(screenshot_pattern)
+        
+        if not screenshots:
+            await update.message.reply_text("No debug screenshots found. Wait for a search cycle to complete.")
+            return
+        
+        # Get the most recent screenshot
+        screenshots.sort(key=os.path.getmtime, reverse=True)
+        latest = screenshots[0]
+        
+        try:
+            with open(latest, 'rb') as photo:
+                await update.message.reply_photo(
+                    photo=photo,
+                    caption=f"📸 Debug screenshot: {os.path.basename(latest)}\nThis shows what the scraper sees when it searches."
+                )
+        except Exception as e:
+            await update.message.reply_text(f"Error sending screenshot: {e}")
+    
     async def addgroup_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Add a new group to monitor"""
         chat_id = update.effective_chat.id
@@ -1040,6 +1070,7 @@ class FacebookTelegramBot:
         app.add_handler(CommandHandler("start", self.help_command))
         app.add_handler(CommandHandler("help", self.help_command))
         app.add_handler(CommandHandler("status", self.status_command))
+        app.add_handler(CommandHandler("debug", self.debug_command))
         app.add_handler(CommandHandler("group", self.group_command))
         app.add_handler(CommandHandler("addgroup", self.addgroup_command))
         app.add_handler(CommandHandler("removegroup", self.removegroup_command))

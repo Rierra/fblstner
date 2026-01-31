@@ -131,19 +131,29 @@ class FacebookSearchScraper:
         
         try:
             self.driver.get(search_url)
-            self._random_delay(1.5)
+            self._random_delay(2.0)  # Increased initial delay
             
             # Wait for page load
             try:
-                WebDriverWait(self.driver, 15).until(
+                WebDriverWait(self.driver, 20).until(  # Increased from 15 to 20
                     EC.presence_of_element_located((By.TAG_NAME, "body"))
                 )
             except TimeoutException:
                 print(f"[SEARCH] Timeout loading page")
                 return []
             
-            # Let content load
-            self._random_delay(2.0)
+            # Wait longer for JavaScript/React content to load
+            print("[DEBUG] Waiting for content to load...")
+            time.sleep(5)  # Explicit 5 second wait for JS rendering
+            
+            # Try to wait for actual search results container
+            try:
+                WebDriverWait(self.driver, 10).until(
+                    EC.presence_of_element_located((By.CSS_SELECTOR, "[role='feed'], [role='main']"))
+                )
+                print("[DEBUG] Feed/main container found")
+            except TimeoutException:
+                print("[DEBUG] No feed container found, continuing anyway...")
             
             # Debug: Log page title to see if we're logged in
             page_title = self.driver.title
