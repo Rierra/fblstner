@@ -28,6 +28,13 @@ except ImportError:
 from config import MAX_POSTS_PER_PAGE, MIN_ACTION_DELAY, MAX_ACTION_DELAY
 from url_cleaner import clean_facebook_url, clean_html_entities
 
+import sys
+
+def log(msg: str):
+    """Print with immediate flush so logs appear in real-time."""
+    print(msg, flush=True)
+    sys.stdout.flush()
+
 
 class FacebookSearchScraper:
     """Headless Chrome scraper for Facebook Search - Uses URL boundaries for clean post isolation."""
@@ -53,7 +60,7 @@ class FacebookSearchScraper:
     def start_browser(self) -> bool:
         """Start headless Chrome and inject cookies."""
         try:
-            print("[BROWSER] Starting headless Chrome...")
+            log("[BROWSER] Starting headless Chrome...")
             
             chrome_options = Options()
             chrome_options.add_argument("--headless=new")
@@ -81,7 +88,7 @@ class FacebookSearchScraper:
             time.sleep(2)
             
             # Inject cookies
-            print(f"[BROWSER] Injecting {len(self.cookies)} cookies...")
+            log(f"[BROWSER] Injecting {len(self.cookies)} cookies...")
             success_count = 0
             fail_count = 0
             important_cookies = {'c_user': False, 'xs': False, 'datr': False, 'fr': False}
@@ -91,7 +98,7 @@ class FacebookSearchScraper:
                     # Track important cookies
                     if cookie['name'] in important_cookies:
                         important_cookies[cookie['name']] = True
-                        print(f"[BROWSER] Found key cookie: {cookie['name']}")
+                        log(f"[BROWSER] Found key cookie: {cookie['name']}")
                     
                     selenium_cookie = {
                         'name': cookie['name'],
@@ -105,30 +112,101 @@ class FacebookSearchScraper:
                     success_count += 1
                 except Exception as e:
                     fail_count += 1
-                    print(f"[BROWSER] Cookie failed: {cookie.get('name', 'unknown')} - {e}")
+                    log(f"[BROWSER] Cookie failed: {cookie.get('name', 'unknown')} - {e}")
             
-            print(f"[BROWSER] Cookie injection: {success_count} success, {fail_count} failed")
+            log(f"[BROWSER] Cookie injection: {success_count} success, {fail_count} failed")
             
             # Check for critical cookies
             missing_critical = [k for k, v in important_cookies.items() if not v]
             if missing_critical:
-                print(f"[BROWSER] WARNING: Missing critical cookies: {missing_critical}")
+                log(f"[BROWSER] WARNING: Missing critical cookies: {missing_critical}")
             else:
-                print("[BROWSER] All critical cookies present!")
+                log("[BROWSER] All critical cookies present!")
             
             # Refresh to apply cookies
             self.driver.refresh()
-            time.sleep(3)
+            time.sleep(1)  # Reduced from 3
             
             # Check if we're logged in by looking at the page
             page_title = self.driver.title
-            print(f"[BROWSER] After refresh, page title: {page_title}")
+            log(f"[BROWSER] After refresh, page title: {page_title}")
             
-            print("[BROWSER] Headless Chrome ready!")
+            # Check if login was successful
+            if "log in" in page_title.lower() or "sign up" in page_title.lower():
+                log("[BROWSER] Cookie login failed - attempting email/password login...")
+                if not self._login_with_credentials():
+                    log("[BROWSER] Login failed!")
+                    return False
+            
+            log("[BROWSER] Headless Chrome ready and authenticated!")
             return True
             
         except Exception as e:
-            print(f"[BROWSER] Failed to start: {e}")
+            log(f"[BROWSER] Failed to start: {e}")
+            return False
+    
+    def _login_with_credentials(self) -> bool:
+        """Login to Facebook using email and password."""
+        import os
+        
+        email = os.environ.get("FB_EMAIL", "")
+        password = os.environ.get("FB_PASSWORD", "")
+        
+        if not email or not password:
+            log("[LOGIN] FB_EMAIL or FB_PASSWORD not set in environment!")
+            return False
+        
+        try:
+            log("[LOGIN] Navigating to login page...")
+            self.driver.get("https://www.facebook.com/login")
+            time.sleep(1)
+            
+            # Find and fill email field
+            log("[LOGIN] Entering email...")
+            email_field = WebDriverWait(self.driver, 10).until(
+                EC.presence_of_element_located((By.ID, "email"))
+            )
+            email_field.clear()
+            email_field.send_keys(email)
+            
+            # Find and fill password field
+            log("[LOGIN] Entering password...")
+            password_field = self.driver.find_element(By.ID, "pass")
+            password_field.clear()
+            password_field.send_keys(password)
+            
+            # Click login button
+            log("[LOGIN] Clicking login button...")
+            login_button = self.driver.find_element(By.NAME, "login")
+            login_button.click()
+            
+            # Wait for navigation
+            time.sleep(3)
+            
+            # Check if login succeeded
+            page_title = self.driver.title
+            current_url = self.driver.current_url
+            log(f"[LOGIN] After login - Title: {page_title}")
+            log(f"[LOGIN] After login - URL: {current_url}")
+            
+            # Check for common failure indicators
+            if "checkpoint" in current_url.lower():
+                log("[LOGIN] WARNING: Security checkpoint detected! May need manual verification.")
+                # Save screenshot for debugging
+                self.driver.save_screenshot("/var/data/login_checkpoint.png")
+                return False
+            
+            if "login" in current_url.lower() and "two_step_verification" not in current_url.lower():
+                log("[LOGIN] Still on login page - credentials may be wrong")
+                return False
+            
+            log("[LOGIN] Login successful!")
+            return True
+            
+        except Exception as e:
+            log(f"[LOGIN] Error during login: {e}")
+            import traceback
+            log(traceback.format_exc())
             return False
     
     def close_browser(self):
@@ -139,7 +217,7 @@ class FacebookSearchScraper:
             except:
                 pass
             self.driver = None
-            print("[BROWSER] Closed.")
+            log("[BROWSER] Closed.")
     
     def search_keyword(self, keyword: str) -> List[Dict]:
         """
@@ -150,16 +228,16 @@ class FacebookSearchScraper:
         recent_filter = "eyJyZWNlbnRfcG9zdHM6MCI6IntcIm5hbWVcIjpcInJlY2VudF9wb3N0c1wiLFwiYXJnc1wiOlwiXCJ9In0%3D"
         search_url = f"https://www.facebook.com/search/posts?q={encoded_keyword}&filters={recent_filter}"
         
-        print(f"\n[SEARCH] Keyword: '{keyword}'")
-        print(f"[SEARCH] URL: {search_url}")
+        log(f"\n[SEARCH] Keyword: '{keyword}'")
+        log(f"[SEARCH] URL: {search_url}")
         
         try:
             self.driver.get(search_url)
-            self._random_delay(2.0)  # Increased initial delay
+            self._random_delay(1.0)  # Reduced from 2.0
             
             # Wait for page load
             try:
-                WebDriverWait(self.driver, 20).until(  # Increased from 15 to 20
+                WebDriverWait(self.driver, 10).until(  # Reduced from 20
                     EC.presence_of_element_located((By.TAG_NAME, "body"))
                 )
             except TimeoutException:
@@ -167,35 +245,35 @@ class FacebookSearchScraper:
                 return []
             
             # Wait longer for JavaScript/React content to load
-            print("[DEBUG] Waiting for content to load...")
-            time.sleep(5)  # Explicit 5 second wait for JS rendering
+            log("[DEBUG] Waiting for content to load...")
+            time.sleep(2)  # Reduced from 5
             
             # Try to wait for actual search results container
             try:
-                WebDriverWait(self.driver, 10).until(
+                WebDriverWait(self.driver, 5).until(  # Reduced from 10
                     EC.presence_of_element_located((By.CSS_SELECTOR, "[role='feed'], [role='main']"))
                 )
-                print("[DEBUG] Feed/main container found")
+                log("[DEBUG] Feed/main container found")
             except TimeoutException:
-                print("[DEBUG] No feed container found, continuing anyway...")
+                log("[DEBUG] No feed container found, continuing anyway...")
             
             # Debug: Log page title to see if we're logged in
             page_title = self.driver.title
-            print(f"[DEBUG] Page title: {page_title}")
+            log(f"[DEBUG] Page title: {page_title}")
             
             # Check for login indicators
             current_url = self.driver.current_url
-            print(f"[DEBUG] Current URL: {current_url}")
+            log(f"[DEBUG] Current URL: {current_url}")
             
             if "login" in current_url.lower() or "checkpoint" in current_url.lower():
-                print("[ERROR] Redirected to login/checkpoint page - cookies may be expired!")
+                log("[ERROR] Redirected to login/checkpoint page - cookies may be expired!")
                 
             # Get page HTML
             html = self.driver.page_source
             
             # Debug: Check if we see "Log In" button (not logged in indicator)
             if 'Log In</span>' in html or 'Log in</span>' in html:
-                print("[WARNING] Page contains 'Log In' button - cookies may not be working!")
+                log("[WARNING] Page contains 'Log In' button - cookies may not be working!")
             
             # Parse with BeautifulSoup - NEW METHOD
             posts = self._extract_posts_by_url_boundaries(html, keyword)
@@ -205,11 +283,11 @@ class FacebookSearchScraper:
                 try:
                     screenshot_path = f"/var/data/debug_screenshot_{keyword}.png"
                     self.driver.save_screenshot(screenshot_path)
-                    print(f"[DEBUG] Saved screenshot to {screenshot_path}")
+                    log(f"[DEBUG] Saved screenshot to {screenshot_path}")
                 except Exception as e:
-                    print(f"[DEBUG] Could not save screenshot: {e}")
+                    log(f"[DEBUG] Could not save screenshot: {e}")
             
-            print(f"[SEARCH] Found {len(posts)} clean posts for '{keyword}'")
+            log(f"[SEARCH] Found {len(posts)} clean posts for '{keyword}'")
             return posts
             
         except WebDriverException as e:
