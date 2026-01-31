@@ -1,0 +1,10 @@
+# Facebook Keyword Monitor - Requirements
+# Multi-group version with Telegram bot
+
+selenium>=4.15.0
+beautifulsoup4>=4.12.0
+requests>=2.31.0
+webdriver-manager>=4.0.0
+python-telegram-bot>=21.0
+python-dotenv>=1.0.0
+aiohttp>=3.9.0

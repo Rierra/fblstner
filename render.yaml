@@ -1,0 +1,24 @@
+# Render deployment configuration
+
+services:
+  - type: worker
+    name: facebook-keyword-monitor
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    disk:
+      name: data
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: DATA_DIR
+        value: /data
+      - key: COOKIES_FILE
+        value: /data/fb_cookies.json
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false  # Set manually in Render dashboard
+      - key: TELEGRAM_CHAT_ID
+        sync: false
+      - key: KEYWORDS
+        value: "vpn,apple,iphone"
+      - key: CHECK_INTERVAL
+        value: "300"
