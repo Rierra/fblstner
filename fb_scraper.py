@@ -478,11 +478,42 @@ class FacebookSearchScraper:
         return None
     
     def _clean_post_text(self, text: str) -> str:
-        """Clean extracted post text by removing UI noise."""
+        """Clean extracted post text by removing UI noise and Facebook's anti-scraping artifacts."""
         # Decode HTML entities first
         text = clean_html_entities(text)
         
-        # Noise patterns to remove
+        # ===========================================
+        # STEP 1: Remove translation UI elements
+        # ===========================================
+        translation_patterns = [
+            r'·?\s*See original\s*·?',
+            r'·?\s*Rate this translation\s*·?',
+            r'·?\s*Translated by\s*·?',
+            r'·?\s*Translate\s*·?',
+            r'·?\s*Auto-translated\s*·?',
+            r'Automatically translated.*?$',
+        ]
+        for pattern in translation_patterns:
+            text = re.sub(pattern, '', text, flags=re.IGNORECASE)
+        
+        # ===========================================
+        # STEP 2: Remove Facebook's obfuscated decoy characters
+        # These appear as "e S o d o s p n t r 8 l 3..." - single chars with spaces
+        # ===========================================
+        # Pattern: sequences of single alphanumeric characters separated by spaces
+        # More than 6 of these in a row is definitely obfuscation
+        text = re.sub(r'(?:\s[a-zA-Z0-9]\s){6,}', ' ', text)
+        text = re.sub(r'(?:^|\s)([a-zA-Z0-9]\s){6,}', ' ', text)
+        
+        # Also remove patterns like "8 l 3 t 0 7" at the start or scattered around
+        text = re.sub(r'\b[0-9]\s+[a-z]\s+[0-9]\s+[a-z]\s+[0-9]\b', '', text, flags=re.IGNORECASE)
+        
+        # Remove random alphanumeric sequence patterns
+        text = re.sub(r'\b[a-z]\s[0-9]\s[a-z]\s[0-9]\s[a-z]\b', '', text, flags=re.IGNORECASE)
+        
+        # ===========================================
+        # STEP 3: Remove other UI noise patterns
+        # ===========================================
         noise_patterns = [
             r'Find friends.*?notifications?',
             r'Number of unread.*?notifications?',
@@ -501,7 +532,6 @@ class FacebookSearchScraper:
             r'\d+:\d+\s*/\s*\d+:\d+',
             r'Shared with Public',
             r'· Follow',
-            r'(?:\s[a-zA-Z0-9]\s){5,}',  # Single char spam
             r'Notifications\s+',
             r'All reactions:\s*\d+',
             r'\d+\s+comments?\s+\d+\s+shares?',
@@ -510,11 +540,17 @@ class FacebookSearchScraper:
             r'\bSophie Burns\b',
             r'Turn on\s+Not now\s+New\s+On Facebook',
             r'All Unread.*?Turn on.*?Not now',
+            r'See more',
+            r'Fewer bubbles.*?table',  # Part of the garbled example
+            r'\.\.\.·',  # Trailing dots with separator
         ]
         
         for pattern in noise_patterns:
             text = re.sub(pattern, '', text, flags=re.IGNORECASE)
         
+        # ===========================================
+        # STEP 4: Clean up and normalize
+        # ===========================================
         # Normalize whitespace
         text = re.sub(r'\s+', ' ', text).strip()
         
@@ -524,6 +560,17 @@ class FacebookSearchScraper:
         
         # Remove timestamp prefix
         text = re.sub(r'^\d+[hdmw]\s*·\s*', '', text)
+        
+        # Remove excessive dots/ellipses
+        text = re.sub(r'\.{3,}', '...', text)
+        
+        # Remove patterns like "1RI4GlF2.com" (random gibberish URLs)
+        text = re.sub(r'\b[a-zA-Z0-9]{6,}\.com\b', '', text)
+        
+        # Final cleanup
+        text = re.sub(r'\s+', ' ', text).strip()
+        text = re.sub(r'^·\s*', '', text)  # Remove leading separator
+        text = re.sub(r'\s*·$', '', text)  # Remove trailing separator
         
         return text.strip()
     
