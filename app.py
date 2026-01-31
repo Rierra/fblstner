@@ -1061,30 +1061,51 @@ def ensure_data_files():
     """
     import shutil
     
+    print("[STARTUP] ========== ensure_data_files() starting ==========")
+    
     data_dir = os.environ.get("DATA_DIR", ".")
     cookies_file = os.environ.get("COOKIES_FILE", "fb_cookies.json")
+    
+    print(f"[STARTUP] DATA_DIR = {data_dir}")
+    print(f"[STARTUP] COOKIES_FILE = {cookies_file}")
     
     # Create data directory if needed
     if data_dir != ".":
         os.makedirs(data_dir, exist_ok=True)
-        print(f"[STARTUP] Ensured data directory exists: {data_dir}")
+        print(f"[STARTUP] Created/verified data directory: {data_dir}")
     
     # Check if cookies file needs to be copied
+    print(f"[STARTUP] Checking if cookies exist at: {cookies_file}")
+    print(f"[STARTUP] Cookies file exists? {os.path.exists(cookies_file)}")
+    
     if not os.path.exists(cookies_file):
         # Render mounts secret files at /etc/secrets/FILENAME
         secret_cookies = "/etc/secrets/fb_cookies.json"
+        print(f"[STARTUP] Checking secret files at: {secret_cookies}")
+        print(f"[STARTUP] Secret file exists? {os.path.exists(secret_cookies)}")
+        
+        # Also list /etc/secrets to see what's there
+        if os.path.exists("/etc/secrets"):
+            try:
+                files = os.listdir("/etc/secrets")
+                print(f"[STARTUP] Files in /etc/secrets: {files}")
+            except Exception as e:
+                print(f"[STARTUP] Error listing /etc/secrets: {e}")
+        else:
+            print("[STARTUP] /etc/secrets directory does not exist")
         
         if os.path.exists(secret_cookies):
             shutil.copy(secret_cookies, cookies_file)
-            print(f"[STARTUP] Copied cookies from {secret_cookies} to {cookies_file}")
+            print(f"[STARTUP] ✓ Copied cookies from {secret_cookies} to {cookies_file}")
         # Also check repo root as fallback
         elif os.path.exists("fb_cookies.json"):
             shutil.copy("fb_cookies.json", cookies_file)
-            print(f"[STARTUP] Copied cookies from repo to {cookies_file}")
+            print(f"[STARTUP] ✓ Copied cookies from repo to {cookies_file}")
         else:
-            print(f"[WARNING] No cookies file found! Add fb_cookies.json as a Render Secret File")
+            print(f"[STARTUP] ✗ WARNING: No cookies file found!")
+            print(f"[STARTUP]   Add fb_cookies.json as a Render Secret File")
     else:
-        print(f"[STARTUP] Cookies file already exists at: {cookies_file}")
+        print(f"[STARTUP] ✓ Cookies file already exists at: {cookies_file}")
     
     # Ensure bot_data.json and seen_posts.json exist (empty if not)
     for filename in ["bot_data.json", "seen_posts.json"]:
@@ -1096,6 +1117,8 @@ def ensure_data_files():
                 else:
                     json.dump({"posts": {}}, f)
             print(f"[STARTUP] Created empty {filename}")
+    
+    print("[STARTUP] ========== ensure_data_files() complete ==========")
 
 
 def main():
