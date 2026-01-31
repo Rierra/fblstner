@@ -862,9 +862,22 @@ class FacebookTelegramBot:
     def monitoring_loop(self):
         """Main monitoring loop - runs in a separate thread"""
         self._log("=== Facebook Monitor Starting ===")
+        self._log(f"Cookies file path: {self.cookies_file}")
+        self._log(f"Cookies file exists: {os.path.exists(self.cookies_file)}")
         
-        # Initialize scraper
-        self.scraper = FacebookSearchScraper(self.cookies_file)
+        # Initialize scraper with error handling
+        try:
+            self.scraper = FacebookSearchScraper(self.cookies_file)
+        except FileNotFoundError as e:
+            self._log(f"[ERROR] Cookies file not found: {e}")
+            self._log(f"[ERROR] Please add fb_cookies.json as a Render Secret File")
+            return
+        except Exception as e:
+            self._log(f"[ERROR] Failed to initialize scraper: {e}")
+            import traceback
+            self._log(traceback.format_exc())
+            return
+        
         if not self.scraper.start_browser():
             self._log("[ERROR] Failed to start browser!")
             return
