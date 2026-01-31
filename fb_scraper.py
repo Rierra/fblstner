@@ -81,9 +81,18 @@ class FacebookSearchScraper:
             time.sleep(2)
             
             # Inject cookies
-            print("[BROWSER] Injecting cookies...")
+            print(f"[BROWSER] Injecting {len(self.cookies)} cookies...")
+            success_count = 0
+            fail_count = 0
+            important_cookies = {'c_user': False, 'xs': False, 'datr': False, 'fr': False}
+            
             for cookie in self.cookies:
                 try:
+                    # Track important cookies
+                    if cookie['name'] in important_cookies:
+                        important_cookies[cookie['name']] = True
+                        print(f"[BROWSER] Found key cookie: {cookie['name']}")
+                    
                     selenium_cookie = {
                         'name': cookie['name'],
                         'value': cookie['value'],
@@ -93,12 +102,27 @@ class FacebookSearchScraper:
                         'httpOnly': cookie.get('httpOnly', False)
                     }
                     self.driver.add_cookie(selenium_cookie)
+                    success_count += 1
                 except Exception as e:
-                    pass  # Some cookies may fail, that's okay
+                    fail_count += 1
+                    print(f"[BROWSER] Cookie failed: {cookie.get('name', 'unknown')} - {e}")
+            
+            print(f"[BROWSER] Cookie injection: {success_count} success, {fail_count} failed")
+            
+            # Check for critical cookies
+            missing_critical = [k for k, v in important_cookies.items() if not v]
+            if missing_critical:
+                print(f"[BROWSER] WARNING: Missing critical cookies: {missing_critical}")
+            else:
+                print("[BROWSER] All critical cookies present!")
             
             # Refresh to apply cookies
             self.driver.refresh()
-            time.sleep(2)
+            time.sleep(3)
+            
+            # Check if we're logged in by looking at the page
+            page_title = self.driver.title
+            print(f"[BROWSER] After refresh, page title: {page_title}")
             
             print("[BROWSER] Headless Chrome ready!")
             return True
