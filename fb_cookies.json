@@ -1,0 +1,90 @@
+[
+    {
+        "name": "datr",
+        "value": "R3lkaQMDvlNSAY0HlewKiH5M",
+        "domain": ".facebook.com",
+        "path": "/",
+        "httpOnly": true,
+        "secure": true
+    },
+    {
+        "name": "sb",
+        "value": "R3lkaZ7mnzsLJhirCcBmJIIe",
+        "domain": ".facebook.com",
+        "path": "/",
+        "httpOnly": true,
+        "secure": true
+    },
+    {
+        "name": "c_user",
+        "value": "61585863453526",
+        "domain": ".facebook.com",
+        "path": "/",
+        "httpOnly": false,
+        "secure": true
+    },
+    {
+        "name": "xs",
+        "value": "18%3AcSrrJ5Q7_-PRxg%3A2%3A1768193549%3A-1%3A-1%3A%3AAcwmaPM4qNXeV7t2dMl9qSHlZNXDtlz5fMcaPcRhOA",
+        "domain": ".facebook.com",
+        "path": "/",
+        "httpOnly": true,
+        "secure": true
+    },
+    {
+        "name": "fr",
+        "value": "1VnaswMmaLeHU2xpk.AWdHEvUO4_ywBTmYKibqeoO7CxrPC-OfOKBZPo8A7GM4IJGO6No.BpZIDY..AAA.0.0.BpZIDY.AWesiNIVTv_H32q71wg6PSqZlHw",
+        "domain": ".facebook.com",
+        "path": "/",
+        "httpOnly": true,
+        "secure": true
+    },
+    {
+        "name": "presence",
+        "value": "C%7B%22t3%22%3A%5B%5D%2C%22utc3%22%3A1768194317938%2C%22v%22%3A1%7D",
+        "domain": ".facebook.com",
+        "path": "/",
+        "httpOnly": false,
+        "secure": true
+    },
+    {
+        "name": "ps_l",
+        "value": "1",
+        "domain": ".facebook.com",
+        "path": "/",
+        "httpOnly": true,
+        "secure": true
+    },
+    {
+        "name": "ps_n",
+        "value": "1",
+        "domain": ".facebook.com",
+        "path": "/",
+        "httpOnly": true,
+        "secure": true
+    },
+    {
+        "name": "locale",
+        "value": "en_US",
+        "domain": ".facebook.com",
+        "path": "/",
+        "httpOnly": false,
+        "secure": true
+    },
+    {
+        "name": "wd",
+        "value": "946x788",
+        "domain": ".facebook.com",
+        "path": "/",
+        "httpOnly": false,
+        "secure": true
+    },
+    {
+        "name": "dpr",
+        "value": "1.25",
+        "domain": ".facebook.com",
+        "path": "/",
+        "httpOnly": false,
+        "secure": true
+    }
+]

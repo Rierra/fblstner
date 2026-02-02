@@ -6,6 +6,7 @@ import time
 import random
 import os
 import re
+import hashlib
 from urllib.parse import quote
 from typing import List, Dict, Optional, Tuple
 from bs4 import BeautifulSoup, NavigableString
@@ -381,8 +382,10 @@ class FacebookSearchScraper:
             if not timestamp:
                 timestamp = self._extract_timestamp(post_container)
             
-            # Create post ID
-            post_id = str(abs(hash(clean_text[:150] + url)))
+            # Create post ID using SHA256 for deterministic hashing across process restarts
+            # Python's built-in hash() is randomized per-session, which caused duplicate notifications
+            content_to_hash = (clean_text[:150] + url).encode('utf-8')
+            post_id = hashlib.sha256(content_to_hash).hexdigest()[:20]
             
             post = {
                 "id": post_id,
