@@ -30,6 +30,15 @@ from fb_scraper import FacebookSearchScraper
 from db_manager import SeenPostsDB
 from url_cleaner import clean_facebook_url, clean_html_entities
 
+# Language detection for English-only filtering
+try:
+    from langdetect import detect, LangDetectException
+    LANGDETECT_AVAILABLE = True
+except ImportError:
+    LANGDETECT_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.warning("langdetect not available - language filtering disabled")
+
 # Import configuration
 from config import (
     TELEGRAM_BOT_TOKEN,
@@ -172,6 +181,28 @@ class FacebookTelegramBot:
     def is_owner(self, chat_id: int) -> bool:
         """Check if the chat is the owner's control group"""
         return chat_id == self.owner_chat_id
+    
+    def is_english(self, text: str) -> bool:
+        """
+        Check if text is in English using langdetect.
+        Returns True only if English. Blocks all foreign language posts.
+        """
+        if not LANGDETECT_AVAILABLE:
+            return True  # If library not available, allow all posts
+        
+        if not text or not text.strip():
+            return True  # Empty text, allow it
+        
+        try:
+            lang = detect(text)
+            return lang == 'en'
+        except LangDetectException:
+            # Detection failed (often happens with very short text)
+            # Block it to be safe - better to miss a short English post than allow foreign
+            return False
+        except Exception as e:
+            logger.warning(f"Language detection error: {e}")
+            return False  # Error, block it to be safe
     
     # =========================================================================
     # COMMAND HANDLERS
@@ -970,6 +1001,12 @@ class FacebookTelegramBot:
                                         if not post_id:
                                             continue
                                         
+                                        # Skip non-English posts
+                                        post_text = post.get('text', '')
+                                        if not self.is_english(post_text):
+                                            self._log(f"  [SKIP] Non-English post: {post_id[:30]}...")
+                                            continue
+                                        
                                         # Mark as seen in global DB
                                         self.seen_db.mark_seen(post_id)
                                         
@@ -994,6 +1031,13 @@ class FacebookTelegramBot:
                                     for post in posts:
                                         post_id = post.get('id')
                                         if not post_id or self.seen_db.is_seen(post_id):
+                                            continue
+                                        
+                                        # Skip non-English posts
+                                        post_text = post.get('text', '')
+                                        if not self.is_english(post_text):
+                                            self._log(f"  [SKIP] Non-English post: {post_id[:30]}...")
+                                            self.seen_db.mark_seen(post_id)  # Still mark as seen to avoid reprocessing
                                             continue
                                         
                                         self.seen_db.mark_seen(post_id)

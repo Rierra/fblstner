@@ -382,10 +382,10 @@ class FacebookSearchScraper:
             if not timestamp:
                 timestamp = self._extract_timestamp(post_container)
             
-            # Create post ID using SHA256 for deterministic hashing across process restarts
-            # Python's built-in hash() is randomized per-session, which caused duplicate notifications
-            content_to_hash = (clean_text[:150] + url).encode('utf-8')
-            post_id = hashlib.sha256(content_to_hash).hexdigest()[:20]
+            # Create post ID using SHA256 of URL ONLY for stable deduplication
+            # Previously used clean_text[:150] + url, but text is unstable (reaction counts change)
+            # URL is the stable unique identifier for a post
+            post_id = hashlib.sha256(url.encode('utf-8')).hexdigest()[:20]
             
             post = {
                 "id": post_id,
